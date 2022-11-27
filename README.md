@@ -118,6 +118,28 @@ if __name__ == '__main__':
 
 ### How to set up the database
 
+```sql
+CREATE TABLE IF NOT EXISTS messages (
+id INTEGER NOT NULL PRIMARY KEY,
+matrix_connection_name VARCHAR(100), 
+matrix_room_id VARCHAR(100), 
+body Text,
+pictures_ids TEXT,
+created_datetime DATETIME,
+sent BOOLEAN DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS messages_to_platforms (
+id INTEGER NOT NULL PRIMARY KEY,
+messages_id INTEGER NOT NULL,
+platform_name VARCHAR(100), 
+json_data TEXT, 
+sent BOOLEAN DEFAULT 0
+);
+
+PRAGMA journal_mode = WAL;
+```
+
 ## Possible simple connections
 - https://github.com/halcy/Mastodon.py
 - https://github.com/python-telegram-bot/python-telegram-bot
