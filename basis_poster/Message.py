@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import json
 
-import functions
+from basis_poster import functions
 
 
 class Message:
