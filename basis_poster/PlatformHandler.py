@@ -5,7 +5,7 @@ from typing import Type
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from basis_poster import functions
-from Message import Message
+from basis_poster.Message import Message
 
 
 class PlatformHandler:
