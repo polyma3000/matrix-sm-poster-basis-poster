@@ -1,5 +1,8 @@
 import logging
+import asyncio
 from typing import Type
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import functions
 from Message import Message
@@ -16,6 +19,12 @@ class PlatformHandler:
         self.platform_name = platform_name
         self.PLATFORM_CONNECTIONS = {}
         self.add_platform_connection_callable = add_platform_connection_callable
+
+        self.scheduler = AsyncIOScheduler()
+        self.scheduler.add_job(self.runner, 'interval', minutes=1)
+
+        self.reload_connections()
+
         logging.getLogger().debug('Finished..')
 
     async def get_messages_from_db(self):
@@ -35,12 +44,17 @@ class PlatformHandler:
 
     async def send_messages_to_platform(self):
         logging.getLogger().debug('Started..')
+        task_list = []
         for message in self.MESSAGES_TO_SEND:
             if message.details[f"{self.platform_name}_connection_name"] in self.PLATFORM_CONNECTIONS:
-                if message.send_to_platform_handler(self.PLATFORM_CONNECTIONS[f"{self.platform_name}_connection_name"]):
-                    del(self.MESSAGES_TO_SEND[message.id])
-                    self.SENT_MESSAGES.append(message.id)
+                task_list.append(self.send_message_to_platform(message))
+        await asyncio.gather(*task_list)
         logging.getLogger().debug('Finished..')
+
+    async def send_message_to_platform(self, message: Message):
+        if await message.send_to_platform_handler(self.PLATFORM_CONNECTIONS[f"{self.platform_name}_connection_name"]):
+            del (self.MESSAGES_TO_SEND[message.id])
+            self.SENT_MESSAGES.append(message.id)
 
     async def update_messages_in_db(self):
         logging.getLogger().debug('Started..')
@@ -64,10 +78,10 @@ class PlatformHandler:
         for platform_connection_name in self.PLATFORM_CONNECTIONS:
             if platform_connection_name not in connections[f"{self.platform_name}_connections"]:
                 del (self.PLATFORM_CONNECTIONS[platform_connection_name])
-        self.init_mastodon_connections(connections)
+        self.init_platform_connections(connections)
         logging.getLogger().debug('Finished..')
 
-    def init_mastodon_connections(self, connections):
+    def init_platform_connections(self, connections):
         logging.getLogger().debug('Started..')
         for platform_connection_name in connections[f"{self.platform_name}_connections"]:
             if platform_connection_name not in self.PLATFORM_CONNECTIONS:
@@ -77,5 +91,18 @@ class PlatformHandler:
                 logging.getLogger().debug(f"Added initializing connection for {platform_connection_name}")
         logging.getLogger().debug('Finished..')
 
+    async def start(self):
+        logging.getLogger().debug('Started..')
+        self.scheduler.start()
 
+        await asyncio.Event().wait()
+        logging.getLogger().debug('Finished..')
 
+    async def runner(self):
+        logging.getLogger().debug('Started..')
+        await asyncio.gather(self.reload_connections(), self.get_messages_from_db())
+
+        await self.send_messages_to_platform()
+
+        await self.update_messages_in_db()
+        logging.getLogger().debug('Finished..')
