@@ -3,6 +3,12 @@ Author: polyma3000
 
 ## How to set up
 
+### Install this package
+
+```bash
+pip install -e git+https://github.com/polyma3000/matrix-sm-poster-basis-poster#egg=matrix-sm-poster-basis-poster
+```
+
 ### Setup connections
 
 To access the Platform connections, we need to create a config file.

@@ -26,7 +26,7 @@ class PlatformHandler:
         self.scheduler = AsyncIOScheduler()
         self.scheduler.add_job(self.runner, 'interval', minutes=1)
 
-        self.reload_connections()
+        await self.reload_connections()
 
         logging.getLogger().debug('Finished..')
 
