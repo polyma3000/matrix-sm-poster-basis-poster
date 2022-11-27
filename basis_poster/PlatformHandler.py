@@ -26,8 +26,6 @@ class PlatformHandler:
         self.scheduler = AsyncIOScheduler()
         self.scheduler.add_job(self.runner, 'interval', minutes=1)
 
-        await self.reload_connections()
-
         logging.getLogger().debug('Finished..')
 
     async def get_messages_from_db(self):
@@ -108,7 +106,8 @@ class PlatformHandler:
 
     async def runner(self):
         logging.getLogger().debug('Started..')
-        await asyncio.gather(self.reload_connections(), self.get_messages_from_db())
+        await self.reload_connections()
+        await self.get_messages_from_db()
 
         await self.send_messages_to_platform()
 
