@@ -46,14 +46,16 @@ class PlatformHandler:
     async def send_messages_to_platform(self):
         logging.getLogger().debug('Started..')
         task_list = []
-        for message in self.MESSAGES_TO_SEND:
+        for message_id in self.MESSAGES_TO_SEND:
+            message = self.MESSAGES_TO_SEND[message_id]
             if message.details[f"{self.platform_name}_connection_name"] in self.PLATFORM_CONNECTIONS:
                 task_list.append(self.send_message_to_platform(message))
         await asyncio.gather(*task_list)
         logging.getLogger().debug('Finished..')
 
     async def send_message_to_platform(self, message: Message):
-        if await message.send_to_platform_handler(self.PLATFORM_CONNECTIONS[f"{self.platform_name}_connection_name"]):
+        if await message.send_to_platform_handler(
+                self.PLATFORM_CONNECTIONS[message.details[f"{self.platform_name}_connection_name"]]):
             del (self.MESSAGES_TO_SEND[message.id])
             self.SENT_MESSAGES.append(message.id)
 
