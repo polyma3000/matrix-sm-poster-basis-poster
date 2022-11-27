@@ -1,11 +1,18 @@
 from setuptools import setup, find_packages
+from pathlib import Path
 
 from basis_poster import __version__
+
+# read the contents of your README file
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='matrix-sm-poster-basis-poster',
     version=__version__,
     description='The Basis Poster for the matrix-sm-poster.',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
 
     author='polyma3000',
 

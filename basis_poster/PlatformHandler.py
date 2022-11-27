@@ -9,16 +9,19 @@ from Message import Message
 
 
 class PlatformHandler:
-    def __init__(self, base_message_class: Type[Message], db_filename: str, platform_name: str,
-                 add_platform_connection_callable: callable):
+    def __init__(self, base_message_class: Type[Message], platform_name: str, max_text_length: int,
+                 db_filename: str = "data/shared_messages.db", connections_filename: str = "data/connections.yaml",
+                 pictures_directory_name: str = "data/pictures"):
+        self.max_text_length = max_text_length
         logging.getLogger().debug('Started..')
         self.MESSAGES_TO_SEND = {}
         self.SENT_MESSAGES = []
         self.db_filename = db_filename
+        self.connections_filename = connections_filename
+        self.pictures_directory_name = pictures_directory_name
         self.base_message_class = base_message_class
         self.platform_name = platform_name
         self.PLATFORM_CONNECTIONS = {}
-        self.add_platform_connection_callable = add_platform_connection_callable
 
         self.scheduler = AsyncIOScheduler()
         self.scheduler.add_job(self.runner, 'interval', minutes=1)
@@ -37,7 +40,7 @@ class PlatformHandler:
         messages_raw = await functions.get_from_db(self.db_filename, sql, (self.platform_name, 0))
         for message in messages_raw:
             if message[0] not in self.MESSAGES_TO_SEND and message[0] not in self.SENT_MESSAGES:
-                msg = self.base_message_class(message)
+                msg = self.base_message_class(self.pictures_directory_name, self.max_text_length, message)
                 if msg.details[f"{self.platform_name}_connection_name"] in self.PLATFORM_CONNECTIONS:
                     self.MESSAGES_TO_SEND[msg.id] = msg
         logging.getLogger().debug('Finished..')
@@ -73,8 +76,10 @@ class PlatformHandler:
 
     async def reload_connections(self):
         logging.getLogger().debug('Started..')
-        await functions.check_for_db_and_connections_files()
-        connections = functions.load_connections_from_file()
+        await functions.check_for_db_and_connections_files(
+            files=[self.db_filename, self.connections_filename],
+            dirs=[self.pictures_directory_name])
+        connections = functions.load_connections_from_file(self.connections_filename)
         for platform_connection_name in self.PLATFORM_CONNECTIONS:
             if platform_connection_name not in connections[f"{self.platform_name}_connections"]:
                 del (self.PLATFORM_CONNECTIONS[platform_connection_name])
@@ -85,7 +90,8 @@ class PlatformHandler:
         logging.getLogger().debug('Started..')
         for platform_connection_name in connections[f"{self.platform_name}_connections"]:
             if platform_connection_name not in self.PLATFORM_CONNECTIONS:
-                self.PLATFORM_CONNECTIONS[platform_connection_name] = self.add_platform_connection_callable(
+                self.PLATFORM_CONNECTIONS[platform_connection_name] = self.add_platform_connection(
+                    platform_connection_name,
                     connections[f"{self.platform_name}_connections"][platform_connection_name]
                 )
                 logging.getLogger().debug(f"Added initializing connection for {platform_connection_name}")
@@ -93,6 +99,8 @@ class PlatformHandler:
 
     async def start(self):
         logging.getLogger().debug('Started..')
+
+        await self.runner()
         self.scheduler.start()
 
         await asyncio.Event().wait()
@@ -106,3 +114,10 @@ class PlatformHandler:
 
         await self.update_messages_in_db()
         logging.getLogger().debug('Finished..')
+
+    def run(self):
+        asyncio.run(self.start())
+
+    @staticmethod
+    def add_platform_connection(platform_connection_name: str, platform_connection: dict):
+        return {platform_connection_name: platform_connection}
