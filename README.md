@@ -6,7 +6,7 @@ Author: polyma3000
 ### Install this package
 
 ```bash
-pip install -e git+https://github.com/polyma3000/matrix-sm-poster-basis-poster#egg=matrix-sm-poster-basis-poster
+pip install matrix-sm-poster-basis-poster
 ```
 
 ### Setup connections
@@ -38,6 +38,7 @@ from basis_poster import Message
 from mastodon import Mastodon
 from mastodon.Mastodon import MastodonNetworkError
 from urllib3.exceptions import ConnectTimeoutError, MaxRetryError
+
 
 class MyMessage(Message):
     async def send_to_platform(self, platform_connection: Mastodon):
@@ -75,6 +76,7 @@ Let's create `MyPlatformHandler.py`:
 from basis_poster import PlatformHandler
 from mastodon import Mastodon
 
+
 class MyPlatformHandler(PlatformHandler):
     @staticmethod
     def add_platform_connection(platform_connection_name: str, platform_connection: dict):
@@ -95,6 +97,7 @@ Let's create `main.py`:
 ```python
 from MyMessage import MyMessage
 from MyPlatformHandler import MyPlatformHandler
+
 
 import logging
 
@@ -145,6 +148,9 @@ sent BOOLEAN DEFAULT 0
 
 PRAGMA journal_mode = WAL;
 ```
+
+### 
+
 
 ## Possible simple connections
 - https://github.com/halcy/Mastodon.py
