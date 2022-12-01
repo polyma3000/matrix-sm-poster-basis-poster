@@ -25,7 +25,7 @@ def split_text_by_length(raw_text: str, delimiter: list[str], max_text_length: i
 
 def split_text_for_platform(raw_text: str, max_text_length: int = 500) -> list[str]:
     logging.getLogger().debug('Started..')
-    if len(raw_text) <= max_text_length:
+    if len(raw_text) <= max_text_length or max_text_length <= 0:
         return [raw_text]
 
     split_texts = split_text_by_length(raw_text, ['.', ',', ' '], max_text_length)

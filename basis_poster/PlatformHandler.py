@@ -1,4 +1,5 @@
 import logging
+import os
 import asyncio
 from typing import Type
 
@@ -9,9 +10,16 @@ from basis_poster.Message import Message
 
 
 class PlatformHandler:
-    def __init__(self, base_message_class: Type[Message], platform_name: str, max_text_length: int,
-                 db_filename: str = "data/shared_messages.db", connections_filename: str = "data/connections.yaml",
-                 pictures_directory_name: str = "data/pictures"):
+    base_message_class = Message
+
+    def __init__(self,
+                 base_message_class: Type[Message] = None,
+                 platform_name: str = os.environ.get('platform_name', 'matrix'),
+                 max_text_length: int = int(os.environ.get('max_text_length', '500')),
+                 db_filename: str = os.environ.get('db_filename', 'data/shared_messages.db'),
+                 connections_filename: str = os.environ.get('connections_filename', 'data/connections.yaml'),
+                 pictures_directory_name: str = os.environ.get('pictures_directory_name', 'data/pictures')
+                 ):
         self.max_text_length = max_text_length
         logging.getLogger().debug('Started..')
         self.MESSAGES_TO_SEND = {}
@@ -19,7 +27,8 @@ class PlatformHandler:
         self.db_filename = db_filename
         self.connections_filename = connections_filename
         self.pictures_directory_name = pictures_directory_name
-        self.base_message_class = base_message_class
+        if base_message_class:
+            self.base_message_class = base_message_class
         self.platform_name = platform_name
         self.PLATFORM_CONNECTIONS = {}
 
@@ -41,6 +50,8 @@ class PlatformHandler:
                 msg = self.base_message_class(self.pictures_directory_name, self.max_text_length, message)
                 if msg.details[f"{self.platform_name}_connection_name"] in self.PLATFORM_CONNECTIONS:
                     self.MESSAGES_TO_SEND[msg.id] = msg
+                    self.MESSAGES_TO_SEND[msg.id].platform_connection_config = self.PLATFORM_CONNECTIONS[
+                        msg.details[f"{self.platform_name}_connection_name"]]
         logging.getLogger().debug('Finished..')
 
     async def send_messages_to_platform(self):
