@@ -7,7 +7,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='matrix-sm-poster-basis-poster',
-    version='0.2',
+    version='0.3',
     description='The Basis Poster for the matrix-sm-poster.',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -17,8 +17,10 @@ setup(
     packages=find_packages(),
 
     install_requires=[
-        'PyYAML',
-        'apscheduler'
+        'apscheduler',
+        'fastapi',
+        'uvicorn',
+        'pydantic'
     ],
 
     classifiers=[
