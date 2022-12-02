@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -6,11 +6,10 @@ from pydantic import BaseModel
 class MessageModel(BaseModel):
     message_body: str
     message_details: dict
-    message_previous_message: dict | None = None
+    message_previous_message: Optional[dict] = None
 
 
 class MessageReturnModel(MessageModel):
-    message_previous_message: dict
     message_for_next_message: dict
 
 
@@ -20,7 +19,7 @@ class MessagePhotoReturnModel(MessageReturnModel):
 
 class ConnectionInputModel(BaseModel):
     connection_name: str
-    connection_settings: dict | None = None
+    connection_settings: Optional[dict] = None
     connection_details: dict
 
 

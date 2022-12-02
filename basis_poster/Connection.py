@@ -7,8 +7,11 @@ from datetime import datetime
 
 from fastapi import HTTPException
 
-from basis_poster import base_functions_to_overload
 from basis_poster.models import MessageModel, ConnectionInputModel, ConnectionModel
+
+
+async def base_overload_function(*args):
+    return args
 
 
 class Connection:
@@ -27,18 +30,30 @@ class Connection:
     }
 
     connection_callables = {
-        'connection_object_creator': base_functions_to_overload.get_connection_object,
-        'connection_send_message': base_functions_to_overload.send_message,
-        'connection_send_message_with_photo': base_functions_to_overload.send_message_with_photo
+        'connection_object_creator': base_overload_function,
+        'connection_send_message': base_overload_function,
+        'connection_send_message_with_photo': base_overload_function
     }
+
+    connection_mandatory_keys_for_connection_details = []
+    connection_mandatory_keys_for_message_details = []
+
     gateway_errors = TimeoutError
 
     def __init__(self, connection_data: ConnectionInputModel, connection_uuid: str):
         logging.getLogger().debug('Started..')
 
+        for mandatory_key in self.connection_mandatory_keys_for_connection_details:
+            if mandatory_key not in connection_data.connection_details:
+                raise HTTPException(status_code=422,
+                                    detail=f"Mandatory Key '{mandatory_key}' not found in connection_details")
+
         self.connection_uuid = connection_uuid
         self.connection_name = connection_data.connection_name
-        self.connection_details = connection_data.connection_details
+        if connection_data.connection_details:
+            self.connection_details = connection_data.connection_details
+        else:
+            self.connection_details = {}
 
         if connection_data.connection_settings:
             for settings_key in connection_data.connection_settings:
@@ -52,6 +67,8 @@ class Connection:
         self.connection_settings['connection_quota_seconds'] = self.connection_settings['connection_quota_time_amount']
         self.connection_settings['connection_quota_seconds'] *= self.get_seconds(
             self.connection_settings['connection_quota_time_unit'])
+
+        self.create_database()
 
         Connection.connections[connection_uuid] = self
         Connection.connections_name_to_uuids[connection_data.connection_name] = connection_uuid
@@ -73,7 +90,11 @@ class Connection:
         if connection_data.connection_name in cls.connections_name_to_uuids:
             return cls.connections[cls.connections_name_to_uuids[connection_data.connection_name]]
         else:
-            return cls(connection_data, str(uuid.uuid4()))
+            uuid_str = str(uuid.uuid4())
+            while uuid_str in cls.connections:
+                uuid_str = str(uuid.uuid4())
+
+            return cls(connection_data, uuid_str)
 
     @staticmethod
     def get_seconds(time_unit: str) -> int:
@@ -99,14 +120,15 @@ class Connection:
                     return os.path.join(path, name)
         return ""
 
-    async def get_connection_model(self):
+    def get_connection_model(self):
         return ConnectionModel(
             connection_name=self.connection_name,
-            connection_details=self.connection_details,
+            connection_details=dict(self.connection_details),
+            connection_settings=dict(self.connection_settings),
             connection_uuid=self.connection_uuid
         )
 
-    async def create_database(self):
+    def create_database(self):
         logging.getLogger().debug('Started..')
         db_connection = sqlite3.connect(self.connection_db_filename, timeout=30)
         cur = db_connection.cursor()
@@ -191,24 +213,37 @@ class Connection:
         if len(message.message_body) > self.connection_settings['connection_max_text_length']:
             raise HTTPException(status_code=413, detail="Message Body too long")
 
+        for mandatory_key in self.connection_mandatory_keys_for_message_details:
+            if mandatory_key not in message.message_details:
+                raise HTTPException(status_code=422,
+                                    detail=f"Mandatory Key '{mandatory_key}' not found in message_details")
+
         quota_check, message_id = await self.check_quota_and_insert()
         if not quota_check:
             logging.getLogger().exception(f"Sending of message failed due to quota limit reached..")
             raise HTTPException(status_code=503, detail="Quota limit for connection reached")
 
         try:
-            return await self.connection_callables['connection_send_message'](
+            return_message = await self.connection_callables['connection_send_message'](
                 self,
                 message
             )
+            await self.update_message_in_db(message_id)
+            return return_message
         except self.gateway_errors as error:
             logging.getLogger().exception(f"Sending of message failed due to Timeout Connection error..", error)
+            await self.update_message_in_db(message_id)
             raise HTTPException(status_code=504, detail="Gateway TimeoutError")
 
     async def send_message_with_photo(self, message: MessageModel, photo_uuid: str):
         if len(message.message_body) > self.connection_settings['connection_max_text_length']:
             logging.getLogger().exception(f"Sending of message failed due to too long message body..")
             raise HTTPException(status_code=413, detail="Message Body too long")
+
+        for mandatory_key in self.connection_mandatory_keys_for_message_details:
+            if mandatory_key not in message.message_details:
+                raise HTTPException(status_code=422,
+                                    detail=f"Mandatory Key '{mandatory_key}' not found in message_details")
 
         photo_name = await self.load_file_path(photo_uuid)
         if photo_name == "":

@@ -2,3 +2,4 @@ venv
 .idea
 build
 dist
+matrix_sm_poster_basis_poster.egg-info
